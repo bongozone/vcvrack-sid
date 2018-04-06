@@ -2,12 +2,12 @@ RACK_DIR ?= ../..
 SLUG = PulsumQuadratum-sid
 VERSION = 0.6.0dev
 
-FLAGS += -Iinclude/resid
+FLAGS += -Idep/include/resid
 SOURCES += $(wildcard src/*.cpp)
 DISTRIBUTABLES += $(wildcard LICENSE*) res
 
 # Static libs
-libresid := lib/libresid.a
+libresid := dep/lib/libresid.a
 OBJECTS += $(libresid)
 
 # Dependencies
