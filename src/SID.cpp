@@ -27,55 +27,31 @@ TODO:
 21 REM *** ABORT ONLY WITH RUN/STOP ! ***
 */
 struct VSid : Module {
+
+	enum VoiceParamIds {
+		FREQ,
+		FREQ_ATT,
+		OCT,
+		PW,
+		PW_ATT,
+		ENV_A,
+		ENV_D,
+		ENV_S,
+		ENV_R,
+		WAVE_NOISE,
+		WAVE_PULSE,
+		WAVE_SAW,
+		WAVE_TRI,
+		WAVE_RING,
+		WAVE_SYNC,
+		FILTER_ENABLE,
+		NUM_VOICE_PARAMS
+	};
+
 	enum ParamIds {
-		FREQ1,
-		FREQ2,
-		FREQ3,
-		FREQ1_ATT,
-		FREQ2_ATT,
-		FREQ3_ATT,
-		OCT1,
-		OCT2,
-		OCT3,
-		PW1,
-		PW2,
-		PW3,
-		PW1_ATT,
-		PW2_ATT,
-		PW3_ATT,
-		ENV1_A,
-		ENV1_D,
-		ENV1_S,
-		ENV1_R,
-		ENV2_A,
-		ENV2_D,
-		ENV2_S,
-		ENV2_R,
-		ENV3_A,
-		ENV3_D,
-		ENV3_S,
-		ENV3_R,
-		WAVE1_NOISE,
-		WAVE1_PULSE,
-		WAVE1_SAW,
-		WAVE1_TRI,
-		WAVE1_RING,
-		WAVE1_SYNC,
-		WAVE2_NOISE,
-		WAVE2_PULSE,
-		WAVE2_SAW,
-		WAVE2_TRI,
-		WAVE2_RING,
-		WAVE2_SYNC,
-		WAVE3_NOISE,
-		WAVE3_PULSE,
-		WAVE3_SAW,
-		WAVE3_TRI,
-		WAVE3_RING,
-		WAVE3_SYNC,
-		FILT1,
-		FILT2,
-		FILT3,
+		VOICE1_PARAM_BASE,
+		VOICE2_PARAM_BASE = VOICE1_PARAM_BASE + NUM_VOICE_PARAMS,
+		VOICE3_PARAM_BASE = VOICE2_PARAM_BASE + NUM_VOICE_PARAMS,
 		FILT_EXT,
 		FILT_HP,
 		FILT_BP,
@@ -84,36 +60,37 @@ struct VSid : Module {
 		FILT_CUTOFF_ATT,
 		FILT_RES,
 		FILT_RES_ATT,
-		WAVEFORM,
-		CUTOFF,
 		MUTE3,
+		WAVEFORM, // fixme temporary
 		NUM_PARAMS
 	};
+
+	enum VoiceInputIds {
+		GATE,
+		FREQ_CV,
+		PW_CV,
+		SYNC,
+		NUM_VOICE_INPUTS
+	};
+
 	enum InputIds {
-		GATE1,
-		GATE2,
-		GATE3,
-		FREQ_CV1,
-		FREQ_CV2,
-		FREQ_CV3,
-		PW1_CV,
-		PW2_CV,
-		PW3_CV,
-		SYNC1,
-		SYNC2,
-		SYNC3,
+		VOICE1_INPUT_BASE,
+		VOICE2_INPUT_BASE = VOICE1_INPUT_BASE + NUM_VOICE_INPUTS,
+		VOICE3_INPUT_BASE = VOICE2_INPUT_BASE + NUM_VOICE_INPUTS,
 		FILT_CUTOFF_CV,
 		FILT_RES_CV,
 		MUTE3_CV,
 		EXT_AUDIO,
 		NUM_INPUTS
 	};
+
 	enum OutputIds {
 		ENV3_OUT,
 		OSC3_OUT,
 		AUDIO_OUT,
 		NUM_OUTPUTS
 	};
+
 	enum LightIds {
 		NUM_LIGHTS
 	};
@@ -153,13 +130,13 @@ void VSid::step() {
 
 	for(int base = 0; base <= 0x0e; base+=7 ) {
 		sid.write(base+0,0); // freq
-		sid.write(base+1, params[FREQ1].value);
+		sid.write(base+1, params[VOICE1_PARAM_BASE + FREQ].value);
 		sid.write(base+4, int(params[WAVEFORM].value)| (clock++ % 100000 == 0 ? 1 : 0)); // control register
 	}
 
 
 	sid.write(0x15,0); // cutoff low
-	sid.write(0x16,int(params[CUTOFF].value)); // cutoff high
+	sid.write(0x16,int(params[FILT_CUTOFF].value)); // cutoff high
 
 
 	sid.clock(CLOCK/engineGetSampleRate());
@@ -195,10 +172,10 @@ VSidWidget::VSidWidget(VSid *module) : ModuleWidget(module) {
 	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
-	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, RACK_GRID_WIDTH), module, VSid::FREQ1, 0, 255, 0));
+	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, RACK_GRID_WIDTH), module, VSid::VOICE1_PARAM_BASE + VSid::FREQ, 0, 255, 0));
 	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 3*RACK_GRID_WIDTH), module, VSid::WAVEFORM, 0, 255, 0));
 
-	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 5*RACK_GRID_WIDTH), module, VSid::CUTOFF, 0, 255, 0));
+	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 5*RACK_GRID_WIDTH), module, VSid::FILT_CUTOFF, 0, 255, 0));
 
 	addOutput(Port::create<PJ301MPort>(Vec(2*RACK_GRID_WIDTH, box.size.y - 4*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::OSC3_OUT));
 	addOutput(Port::create<PJ301MPort>(Vec(2*RACK_GRID_WIDTH, box.size.y - 2*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::AUDIO_OUT));
