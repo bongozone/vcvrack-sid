@@ -1,6 +1,6 @@
 # VCVRack SID
 
-Panel concept:
+OG Panel concept:
 ```
 ______  oct   pw   adsr
 |      |  \   [_]  [_][_][_][_]

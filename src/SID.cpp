@@ -3,6 +3,7 @@
 #include "sid.h"
 #define MAX_VOLTAGE 5.f
 #define CLOCK 1022730
+#define NUM_VOICES 3
 
 /*
 TODO:
@@ -10,6 +11,22 @@ TODO:
 	- should freqs be normalled?
 	- pitch not constant across sample rates!
 */
+
+struct MyLabel : Widget {
+	std::string text;
+	int fontSize;
+	NVGcolor color = nvgRGB(255,20,20);
+	MyLabel(int _fontSize = 18) {
+		fontSize = _fontSize;
+	}
+	void draw(NVGcontext *vg) override {
+		nvgTextAlign(vg, NVG_ALIGN_CENTER|NVG_ALIGN_BASELINE);
+		nvgFillColor(vg, color);
+		nvgFontSize(vg, fontSize);
+		nvgText(vg, box.pos.x, box.pos.y, text.c_str(), NULL);
+	}
+};
+
 
 
 /*
@@ -68,6 +85,7 @@ struct VSid : Module {
 	enum VoiceInputIds {
 		GATE,
 		FREQ_CV,
+		FREQ_CV2,
 		PW_CV,
 		SYNC,
 		NUM_VOICE_INPUTS
@@ -157,10 +175,52 @@ void VSid::step() {
 
 struct VSidWidget : ModuleWidget {
 	VSidWidget(VSid *module);
+	void createVoice(int yOffset, int baseParam, int baseInput);
 };
 
+
+void VSidWidget::createVoice(int yOffset, int baseParam, int baseInput)  {
+	addParam(ParamWidget::create<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH, yOffset), module, baseParam + VSid::FREQ, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<CKSSThree>(Vec(75, yOffset), module, VSid::OCT, 0.0f, 2.0f, 1.0f));
+	addParam(ParamWidget::create<RoundBlackKnob>(Vec(100, yOffset), module, baseParam + VSid::PW, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<RoundBlackKnob>(Vec(135, yOffset), module, baseParam + VSid::ENV_A, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<RoundBlackKnob>(Vec(165, yOffset), module, baseParam + VSid::ENV_D, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<RoundBlackKnob>(Vec(195, yOffset), module, baseParam + VSid::ENV_S, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<RoundBlackKnob>(Vec(225, yOffset), module, baseParam + VSid::ENV_R, 0, 255, 0)); // FIXME range
+
+	const int yOffset2 = yOffset + 35;
+
+	addParam(ParamWidget::create<Trimpot>(Vec(75, yOffset2), module, baseParam + VSid::FREQ_ATT, 0, 255, 0)); // FIXME range
+	addParam(ParamWidget::create<Trimpot>(Vec(105, yOffset2), module, baseParam + VSid::PW_ATT, 0, 255, 0)); // FIXME range
+
+	addParam(ParamWidget::create<CKSS>(Vec(135, yOffset2), module, VSid::WAVE_NOISE, 0.0f, 1.0f, 0.0f));
+	addParam(ParamWidget::create<CKSS>(Vec(150, yOffset2), module, VSid::WAVE_PULSE, 0.0f, 1.0f, 0.0f));
+	addParam(ParamWidget::create<CKSS>(Vec(165, yOffset2), module, VSid::WAVE_SAW, 0.0f, 1.0f, 0.0f));
+	addParam(ParamWidget::create<CKSS>(Vec(180, yOffset2), module, VSid::WAVE_TRI, 0.0f, 1.0f, 0.0f));
+	addParam(ParamWidget::create<CKSS>(Vec(195, yOffset2), module, VSid::WAVE_RING, 0.0f, 1.0f, 0.0f));
+	addParam(ParamWidget::create<CKSS>(Vec(210, yOffset2), module, VSid::WAVE_SYNC, 0.0f, 1.0f, 0.0f));
+
+	addInput(Port::create<PJ301MPort>(Vec(box.size.x-3*RACK_GRID_WIDTH, yOffset2), Port::INPUT, module, baseInput + VSid::SYNC));
+
+	const int yOffset3 = yOffset2 + 25;
+
+	addInput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH, yOffset3), Port::INPUT, module, baseInput + VSid::GATE));
+	addInput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH*3, yOffset3), Port::INPUT, module, baseInput + VSid::FREQ_CV));
+	addInput(Port::create<PJ301MPort>(Vec(70, yOffset3), Port::INPUT, module, baseInput + VSid::FREQ_CV2));
+	addInput(Port::create<PJ301MPort>(Vec(100, yOffset3), Port::INPUT, module, baseInput + VSid::PW_CV));
+
+	{
+		MyLabel* const cLabel = new MyLabel(18);
+		cLabel->box.pos = Vec(195/2, (yOffset3+ 10)/2); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "& ▮ ◢ ▲ O 1  rst";
+		addChild(cLabel);
+	}
+
+}
+
 VSidWidget::VSidWidget(VSid *module) : ModuleWidget(module) {
-	box.size = Vec(4 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
+	box.size = Vec(18 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
 	Panel* panel = new LightPanel();
 	panel->box.size = box.size;
@@ -172,13 +232,40 @@ VSidWidget::VSidWidget(VSid *module) : ModuleWidget(module) {
 	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
 	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
+	for(int i = 0; i < NUM_VOICES+1; i++) {
+		const int yOffset = RACK_GRID_WIDTH + i*100;
+		int paramBase, inputBase;
+		switch(i) {
+			case 0:
+				paramBase = VSid::VOICE1_PARAM_BASE;
+				inputBase = VSid::VOICE1_INPUT_BASE;
+				break;
+			case 1:
+				paramBase = VSid::VOICE2_PARAM_BASE;
+				inputBase = VSid::VOICE2_INPUT_BASE;
+				break;
+			case 2:
+				paramBase = VSid::VOICE3_PARAM_BASE;
+				inputBase = VSid::VOICE3_INPUT_BASE;
+				break;
+			case 3:
+				// FIXME layout the filter row
+				continue;
+			default:
+				assert(false);
+		}
+		createVoice(yOffset, paramBase, inputBase);
+	}
+
+	/*
 	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, RACK_GRID_WIDTH), module, VSid::VOICE1_PARAM_BASE + VSid::FREQ, 0, 255, 0));
 	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 3*RACK_GRID_WIDTH), module, VSid::WAVEFORM, 0, 255, 0));
 
 	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 5*RACK_GRID_WIDTH), module, VSid::FILT_CUTOFF, 0, 255, 0));
+	*/
 
-	addOutput(Port::create<PJ301MPort>(Vec(2*RACK_GRID_WIDTH, box.size.y - 4*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::OSC3_OUT));
-	addOutput(Port::create<PJ301MPort>(Vec(2*RACK_GRID_WIDTH, box.size.y - 2*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::AUDIO_OUT));
+	addOutput(Port::create<PJ301MPort>(Vec(box.size.x-3*RACK_GRID_WIDTH, box.size.y - 5*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::OSC3_OUT));
+	addOutput(Port::create<PJ301MPort>(Vec(box.size.x-3*RACK_GRID_WIDTH, box.size.y - 3*RACK_GRID_WIDTH), Port::OUTPUT, module, VSid::AUDIO_OUT));
 
 }
 
