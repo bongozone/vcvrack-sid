@@ -10,6 +10,10 @@ TODO:
 	- should gates be normalled?
 	- should freqs be normalled?
 	- pitch not constant across sample rates!
+	- CV for ring, sync
+	- CV for enaging more waveforms - begin seeking at 1v
+	  - negative v?
+	- second reset input with comparitor
 */
 
 struct MyLabel : Widget {
